@@ -97,7 +97,7 @@ use gfx::font_cache_thread::FontCacheThread;
 use ipc_channel::ipc::{self, IpcSender};
 use log::{Log, Metadata, Record};
 use media::{GLPlayerThreads, WindowGLContext};
-use msg::constellation_msg::{PipelineNamespace, PipelineNamespaceId, ProcessNamespace};
+use msg::constellation_msg::{PipelineNamespace, PipelineNamespaceId};
 use net::resource_thread::new_resource_threads;
 use net_traits::IpcSend;
 use offscreen_gl_context::GLContextDispatcher;
@@ -293,11 +293,9 @@ where
         // Make sure the gl context is made current.
         window.prepare_for_composite();
 
-        // The first process-namespace in Servo.
-        ProcessNamespace::install(PipelineNamespaceId(1));
-
-        // Reserving a namespace to create TopLevelBrowserContextId.
-        PipelineNamespace::install(ProcessNamespace::next_pipeline_namespace_id());
+        // Setup a pipeline-namespace for the "main process".
+        // In single-process mode, subsequent calls would be idempotent.
+        PipelineNamespace::install(PipelineNamespaceId(0));
 
         // Get both endpoints of a special channel for communication between
         // the client window and the compositor. This channel is unique because
