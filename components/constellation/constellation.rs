@@ -129,7 +129,9 @@ use msg::constellation_msg::{
     BrowsingContextGroupId, BrowsingContextId, HistoryStateId, PipelineId,
     TopLevelBrowsingContextId,
 };
-use msg::constellation_msg::{PipelineNamespace, PipelineNamespaceId, TraversalDirection};
+use msg::constellation_msg::{
+    PipelineNamespace, PipelineNamespaceId, ProcessNamespace, TraversalDirection,
+};
 use net_traits::pub_domains::reg_host;
 use net_traits::request::RequestBuilder;
 use net_traits::storage_thread::{StorageThreadMsg, StorageType};
@@ -705,8 +707,7 @@ where
                 let swmanager_receiver =
                     route_ipc_receiver_to_new_mpsc_receiver_preserving_errors(swmanager_receiver);
 
-                // Zero is reserved for the embedder.
-                PipelineNamespace::install(PipelineNamespaceId(1));
+                PipelineNamespace::install(ProcessNamespace::next_pipeline_namespace_id());
 
                 let mut constellation: Constellation<Message, LTF, STF> = Constellation {
                     script_sender: ipc_script_sender,
@@ -738,9 +739,7 @@ where
                     pipelines: HashMap::new(),
                     browsing_contexts: HashMap::new(),
                     pending_changes: vec![],
-                    // We initialize the namespace at 2, since we reserved
-                    // namespace 0 for the embedder, and 0 for the constellation
-                    next_pipeline_namespace_id: PipelineNamespaceId(2),
+                    next_pipeline_namespace_id: ProcessNamespace::next_pipeline_namespace_id(),
                     time_profiler_chan: state.time_profiler_chan,
                     mem_profiler_chan: state.mem_profiler_chan,
                     window_size: WindowSizeData {

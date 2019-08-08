@@ -3,7 +3,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 #![deny(unsafe_code)]
+#![feature(atomic_min_max)]
 
+#[macro_use]
+extern crate lazy_static;
 #[macro_use]
 extern crate malloc_size_of;
 #[macro_use]

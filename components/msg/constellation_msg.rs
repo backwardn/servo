@@ -9,12 +9,54 @@ use std::cell::Cell;
 use std::fmt;
 use std::mem;
 use std::num::NonZeroU32;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum TraversalDirection {
     Forward(usize),
     Back(usize),
+}
+
+lazy_static! {
+    static ref PROCESS_NAMESPACE: ProcessNamespace = ProcessNamespace::new();
+}
+
+pub struct ProcessNamespace {
+    index: Arc<AtomicU32>,
+}
+
+impl ProcessNamespace {
+    pub fn new() -> Self {
+        ProcessNamespace {
+            index: Arc::new(AtomicU32::new(0)),
+        }
+    }
+
+    pub fn install(namespace_id: PipelineNamespaceId) {
+        // In multi-process Servo, index is currently zero and this always sets it to namespace_id.
+        //
+        // In single-process Servo, index might have been concurrently set
+        // to something higher than namespace_id.
+        //
+        // In that case this leaves the highest number in place,
+        // ensuring unique, and increasing, indexes globally.
+        PROCESS_NAMESPACE
+            .index
+            .fetch_max(namespace_id.0, Ordering::SeqCst);
+    }
+
+    fn next_index(&self) -> u32 {
+        let previous = self.index.fetch_add(1, Ordering::SeqCst);
+        // Assert the name-space is installed.
+        assert!(previous > 0);
+        previous
+    }
+
+    pub fn next_pipeline_namespace_id() -> PipelineNamespaceId {
+        PipelineNamespaceId(PROCESS_NAMESPACE.next_index())
+    }
 }
 
 /// Each pipeline ID needs to be unique. However, it also needs to be possible to

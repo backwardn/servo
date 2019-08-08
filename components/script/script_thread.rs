@@ -114,7 +114,7 @@ use msg::constellation_msg::{
 };
 use msg::constellation_msg::{BrowsingContextId, HistoryStateId, PipelineId};
 use msg::constellation_msg::{HangAnnotation, MonitoredComponentId, MonitoredComponentType};
-use msg::constellation_msg::{PipelineNamespace, TopLevelBrowsingContextId};
+use msg::constellation_msg::{PipelineNamespace, ProcessNamespace, TopLevelBrowsingContextId};
 use net_traits::image_cache::{ImageCache, PendingImageResponse};
 use net_traits::request::{CredentialsMode, Destination, RedirectMode, RequestBuilder};
 use net_traits::storage_thread::StorageType;
@@ -742,8 +742,13 @@ impl ScriptThreadFactory for ScriptThread {
             .name(format!("ScriptThread {:?}", state.id))
             .spawn(move || {
                 thread_state::initialize(ThreadState::SCRIPT);
-                PipelineNamespace::install(state.pipeline_namespace_id);
+
+                // Setup the process-namespace.
+                ProcessNamespace::install(state.pipeline_namespace_id);
+                // Setup the thread-local pipeline-namespace.
+                PipelineNamespace::install(ProcessNamespace::next_pipeline_namespace_id());
                 TopLevelBrowsingContextId::install(state.top_level_browsing_context_id);
+
                 let roots = RootCollection::new();
                 let _stack_roots = ThreadLocalStackRoots::new(&roots);
                 let id = state.id;
