@@ -736,14 +736,19 @@ impl ScriptThreadFactory for ScriptThread {
     ) -> (Sender<message::Msg>, Receiver<message::Msg>) {
         let (script_chan, script_port) = unbounded();
 
+        // Setup the pipeline-namespace for the process,
+        // this will have no effect in single-process mode.
+        PipelineNamespace::install(state.pipeline_namespace_id);
+
         let (sender, receiver) = unbounded();
         let layout_chan = sender.clone();
         thread::Builder::new()
             .name(format!("ScriptThread {:?}", state.id))
             .spawn(move || {
                 thread_state::initialize(ThreadState::SCRIPT);
-                PipelineNamespace::install(state.pipeline_namespace_id);
+
                 TopLevelBrowsingContextId::install(state.top_level_browsing_context_id);
+
                 let roots = RootCollection::new();
                 let _stack_roots = ThreadLocalStackRoots::new(&roots);
                 let id = state.id;

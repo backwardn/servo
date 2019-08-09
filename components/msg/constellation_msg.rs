@@ -5,10 +5,12 @@
 //! The high-level interface from script to constellation. Using this abstract interface helps
 //! reduce coupling between these two components.
 
+use parking_lot::Mutex;
 use std::cell::Cell;
 use std::fmt;
 use std::mem;
 use std::num::NonZeroU32;
+use std::sync::Arc;
 use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -32,7 +34,6 @@ pub enum TraversalDirection {
 /// thread that created this pipeline ID - however this is really an implementation
 /// detail so shouldn't be relied upon in code logic. It's best to think of the
 /// pipeline ID as a simple unique identifier that doesn't convey any more information.
-#[derive(Clone, Copy)]
 pub struct PipelineNamespace {
     id: PipelineNamespaceId,
     index: u32,
@@ -40,13 +41,14 @@ pub struct PipelineNamespace {
 
 impl PipelineNamespace {
     pub fn install(namespace_id: PipelineNamespaceId) {
-        PIPELINE_NAMESPACE.with(|tls| {
-            assert!(tls.get().is_none());
-            tls.set(Some(PipelineNamespace {
+        let mut name_space = PIPELINE_NAMESPACE.lock();
+        // Idempotent in single-process Servo.
+        if name_space.is_none() {
+            *name_space = Some(PipelineNamespace {
                 id: namespace_id,
                 index: 0,
-            }));
-        });
+            });
+        }
     }
 
     fn next_index(&mut self) -> NonZeroU32 {
@@ -76,7 +78,10 @@ impl PipelineNamespace {
     }
 }
 
-thread_local!(pub static PIPELINE_NAMESPACE: Cell<Option<PipelineNamespace>> = Cell::new(None));
+lazy_static! {
+    static ref PIPELINE_NAMESPACE: Arc<Mutex<Option<PipelineNamespace>>> =
+        Arc::new(Mutex::new(None));
+}
 
 #[derive(
     Clone, Copy, Debug, Deserialize, Eq, Hash, MallocSizeOf, Ord, PartialEq, PartialOrd, Serialize,
@@ -97,12 +102,10 @@ pub struct PipelineId {
 
 impl PipelineId {
     pub fn new() -> PipelineId {
-        PIPELINE_NAMESPACE.with(|tls| {
-            let mut namespace = tls.get().expect("No namespace set for this thread!");
-            let new_pipeline_id = namespace.next_pipeline_id();
-            tls.set(Some(namespace));
-            new_pipeline_id
-        })
+        if let Some(namespace) = PIPELINE_NAMESPACE.lock().as_mut() {
+            return namespace.next_pipeline_id();
+        }
+        unreachable!("No PipelineNamespace set for this process");
     }
 
     pub fn to_webrender(&self) -> webrender_api::PipelineId {
@@ -149,12 +152,10 @@ pub struct BrowsingContextId {
 
 impl BrowsingContextId {
     pub fn new() -> BrowsingContextId {
-        PIPELINE_NAMESPACE.with(|tls| {
-            let mut namespace = tls.get().expect("No namespace set for this thread!");
-            let new_browsing_context_id = namespace.next_browsing_context_id();
-            tls.set(Some(namespace));
-            new_browsing_context_id
-        })
+        if let Some(namespace) = PIPELINE_NAMESPACE.lock().as_mut() {
+            return namespace.next_browsing_context_id();
+        }
+        unreachable!("No PipelineNamespace set for this process");
     }
 }
 
@@ -229,12 +230,10 @@ pub struct HistoryStateId {
 
 impl HistoryStateId {
     pub fn new() -> HistoryStateId {
-        PIPELINE_NAMESPACE.with(|tls| {
-            let mut namespace = tls.get().expect("No namespace set for this thread!");
-            let next_history_state_id = namespace.next_history_state_id();
-            tls.set(Some(namespace));
-            next_history_state_id
-        })
+        if let Some(namespace) = PIPELINE_NAMESPACE.lock().as_mut() {
+            return namespace.next_history_state_id();
+        }
+        unreachable!("No PipelineNamespace set for this process");
     }
 }
 

@@ -291,7 +291,8 @@ where
         // Make sure the gl context is made current.
         window.prepare_for_composite();
 
-        // Reserving a namespace to create TopLevelBrowserContextId.
+        // Setup a pipeline-namespace for the "main process".
+        // In single-process mode, subsequent calls would be idempotent.
         PipelineNamespace::install(PipelineNamespaceId(0));
 
         // Get both endpoints of a special channel for communication between
