@@ -312,7 +312,6 @@ impl BackgroundHangMonitorWorker {
                 if let Some(name) = name {
                     self.component_names.insert(component_id.clone(), name);
                 }
-                println!("Monitoring: {:?}", component_id);
                 assert!(
                     self.monitored_components
                         .insert(component_id, component)

@@ -53,7 +53,7 @@ impl PipelineNamespace {
 
     fn next_index(&mut self) -> NonZeroU32 {
         self.index += 1;
-        NonZeroU32::new(self.index.clone()).expect("pipeline id index wrapped!")
+        NonZeroU32::new(self.index).expect("pipeline id index wrapped!")
     }
 
     fn next_pipeline_id(&mut self) -> PipelineId {
